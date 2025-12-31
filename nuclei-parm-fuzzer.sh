@@ -8,10 +8,10 @@ RESET='\033[0m'
 # ASCII art banner
 echo -e "${RED}"
 cat << "EOF"
-  _   _ ___ ___ _    ___ ___   ___  ___ ___ __  __   ___ _   _ _______________ 
- | | | | __| __| |  | __|_ _| | _ \/ __| _ \  \/  | | __| | | |_  /_  / __| _ \
- | |_| | _|| _|| |__| _| | |  |  _/ (__|   / |\/| | | _|| |_| |/ / / /| _||   /
-  \___/|___|___|____|___|___| |_|  \___|_|_\_|  |_| |_|  \___//___/___|___|_|_\
+ _  _ _   _  ___ _    ___ ___   ___  _   ___ __  __   ___ _   _ ___________ ___ 
+| \| | | | |/ __| |  | __|_ _| | _ \/_\ | _ \  \/  | | __| | | |_  /_  / __| _ \
+| .` | |_| | (__| |__| _| | |  |  _/ _ \|   / |\/| | | _|| |_| |/ / / /| _||   /
+|_|\_|\___/ \___|____|___|___| |_|/_/ \_\_|_\_|  |_| |_|  \___//___/___|___|_|_\
                                                                                
                                                by Ajvad-N
 EOF
@@ -128,10 +128,28 @@ check_and_install "nuclei" "go install github.com/projectdiscovery/nuclei/v3/cmd
 check_and_install "uro" "pip3 install uro --break-system-packages"
 check_and_install "paramspider" "pip3 install git+https://github.com/devanshbatham/ParamSpider --break-system-packages"
 
-# Create temporary files
-ALL_URLS_FILE=$(mktemp)
-FILTERED_URLS_FILE="filtered_urls.txt"
-NUCLEI_RESULTS="nuclei_results.txt"
+# Determine output directory name
+if [[ -n "$TARGET_DOMAIN" ]]; then
+    OUTPUT_NAME="$TARGET_DOMAIN"
+else
+    # Extract filename without extension
+    OUTPUT_NAME=$(basename "$TARGET_FILE" | cut -d. -f1)
+fi
+
+OUTPUT_DIR="$OUTPUT_NAME"
+mkdir -p "$OUTPUT_DIR"
+
+echo -e "${GREEN}[INFO] Output directory created: $OUTPUT_DIR${RESET}"
+
+# Define output files
+FULL_URLS_FILE="$OUTPUT_DIR/full-url-$OUTPUT_NAME.txt"
+PARAM_URLS_FILE="$OUTPUT_DIR/param-url-$OUTPUT_NAME.txt"
+JS_URLS_FILE="$OUTPUT_DIR/js-urls-$OUTPUT_NAME.txt"
+NUCLEI_RESULTS="$OUTPUT_DIR/nuclei_results.txt"
+
+# Temporary files
+ALL_RAW_URLS=$(mktemp)
+ALL_LIVE_URLS=$(mktemp)
 
 # Step 1: Fetch URLs using multiple tools
 echo -e "${GREEN}[INFO] Fetching URLs using multiple tools (gau, waybackurls, katana, paramspider) in parallel...${RESET}"
@@ -161,29 +179,43 @@ fi
 # Wait for all background processes to finish
 wait
 
-# Combine results
-cat "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" >> "$ALL_URLS_FILE"
+# Combine and deduplicate results
+cat "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" | sort -u > "$ALL_RAW_URLS"
 rm "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT"
 
-# Step 2: Filter URLs with query parameters
-echo -e "${GREEN}[INFO] Filtering URLs with query parameters...${RESET}"
-grep -E '\?[^=]+=.+$' "$ALL_URLS_FILE" | uro | sort -u > "$FILTERED_URLS_FILE"
-rm "$ALL_URLS_FILE"
+echo -e "${GREEN}[INFO] checking for live URLs on $(wc -l < "$ALL_RAW_URLS") discovered URLs...${RESET}"
 
-# Step 3: Check live URLs using httpx
-echo -e "${GREEN}[INFO] Checking for live URLs using httpx (optimized)...${RESET}"
-# Increased threads and reduced timeout for speed
-httpx -silent -threads 500 -rl 300 -timeout 5 < "$FILTERED_URLS_FILE" > "$FILTERED_URLS_FILE.tmp"
-mv "$FILTERED_URLS_FILE.tmp" "$FILTERED_URLS_FILE"
+# Step 2: Check live URLs using httpx
+# We check EVERYTHING first because the user wants "all these need to be live urls"
+httpx -silent -threads 500 -rl 300 -timeout 5 < "$ALL_RAW_URLS" > "$ALL_LIVE_URLS"
+rm "$ALL_RAW_URLS"
+
+# Step 3: Categorize URLs
+echo -e "${GREEN}[INFO] Categorizing live URLs...${RESET}"
+
+# 1. Full URLs
+cp "$ALL_LIVE_URLS" "$FULL_URLS_FILE"
+
+# 2. JavaScript URLs
+grep -E "\.js(\?|$)" "$ALL_LIVE_URLS" > "$JS_URLS_FILE"
+
+# 3. Parameter URLs (filtered with uro)
+grep -E '\?[^=]+=.+$' "$ALL_LIVE_URLS" | uro > "$PARAM_URLS_FILE"
+
+rm "$ALL_LIVE_URLS"
 
 # Step 4: Run nuclei for DAST scanning
-echo -e "${GREEN}[INFO] Running nuclei for DAST scanning (optimized)...${RESET}"
+echo -e "${GREEN}[INFO] Running nuclei for DAST scanning on parameter URLs...${RESET}"
 # Increased concurrency and rate-limiting
-nuclei -dast -retries 2 -silent -concurrency 50 -rate-limit 100 -o "$NUCLEI_RESULTS" < "$FILTERED_URLS_FILE"
+nuclei -dast -retries 2 -silent -concurrency 50 -rate-limit 100 -o "$NUCLEI_RESULTS" < "$PARAM_URLS_FILE"
 
 # Step 5: Show saved results
-echo -e "${GREEN}[INFO] Nuclei results saved to $NUCLEI_RESULTS${RESET}"
-echo -e "${GREEN}[INFO] Filtered URLs saved to $FILTERED_URLS_FILE for manual testing.${RESET}"
+echo -e "${GREEN}[INFO] Results saved in directory: $OUTPUT_DIR${RESET}"
+echo -e "  - Full Live URLs: $FULL_URLS_FILE"
+echo -e "  - JS Live URLs: $JS_URLS_FILE"
+echo -e "  - Parameter Live URLs: $PARAM_URLS_FILE"
+echo -e "  - Nuclei Results: $NUCLEI_RESULTS"
+echo -e "${GREEN}[INFO] Automation completed successfully!${RESET}"
 echo -e "${GREEN}[INFO] Automation completed successfully!${RESET}"
 
 # Check if Nuclei found any vulnerabilities
