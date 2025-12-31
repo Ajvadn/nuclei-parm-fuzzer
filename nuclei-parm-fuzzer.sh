@@ -203,6 +203,22 @@ wait
 cat "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" "$HAKRAWLER_OUT" "$WAYMORE_OUT" | sort -u > "$ALL_RAW_URLS"
 rm "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" "$HAKRAWLER_OUT" "$WAYMORE_OUT"
 
+# Filter URLs to ensure they belong to the scope
+echo -e "${GREEN}[INFO] Filtering URLs to match the provided scope...${RESET}"
+FILTERED_URLS=$(mktemp)
+
+if [[ -n "$TARGET_FILE" ]]; then
+    # Filter using the domain list file
+    # We use grep with -F (fixed strings) and -f (file patterns) to match lines containing any of the domains
+    grep -F -f "$TARGET_FILE" "$ALL_RAW_URLS" > "$FILTERED_URLS"
+else
+    # Filter using the single domain
+    grep -F "$TARGET_DOMAIN" "$ALL_RAW_URLS" > "$FILTERED_URLS"
+fi
+
+# Overwrite ALL_RAW_URLS with the filtered list
+mv "$FILTERED_URLS" "$ALL_RAW_URLS"
+
 
 echo -e "${GREEN}[INFO] checking for live URLs on $(wc -l < "$ALL_RAW_URLS") discovered URLs...${RESET}"
 
