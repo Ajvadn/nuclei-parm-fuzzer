@@ -88,6 +88,13 @@ update_tools() {
     
     echo -e "${GREEN}[+] Updating paramspider...${RESET}"
     pip3 install --upgrade git+https://github.com/devanshbatham/ParamSpider --break-system-packages
+
+    echo -e "${GREEN}[+] Updating waymore...${RESET}"
+    pip3 install --upgrade git+https://github.com/xnl-h4ck3r/waymore.git --break-system-packages
+
+    echo -e "${GREEN}[+] Updating hakrawler...${RESET}"
+    go install github.com/hakluke/hakrawler@latest
+
     
     echo -e "${GREEN}[INFO] All tools and templates updated successfully!${RESET}"
     exit 0
@@ -127,6 +134,9 @@ check_and_install "httpx" "go install github.com/projectdiscovery/httpx/cmd/http
 check_and_install "nuclei" "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
 check_and_install "uro" "pip3 install uro --break-system-packages"
 check_and_install "paramspider" "pip3 install git+https://github.com/devanshbatham/ParamSpider --break-system-packages"
+check_and_install "waymore" "pip3 install git+https://github.com/xnl-h4ck3r/waymore.git --break-system-packages"
+check_and_install "hakrawler" "go install github.com/hakluke/hakrawler@latest"
+
 
 # Determine output directory name
 if [[ -n "$TARGET_DOMAIN" ]]; then
@@ -152,13 +162,17 @@ ALL_RAW_URLS=$(mktemp)
 ALL_LIVE_URLS=$(mktemp)
 
 # Step 1: Fetch URLs using multiple tools
-echo -e "${GREEN}[INFO] Fetching URLs using multiple tools (gau, waybackurls, katana, paramspider) in parallel...${RESET}"
+echo -e "${GREEN}[INFO] Fetching URLs using multiple tools (gau, waybackurls, katana, paramspider, hakrawler, waymore) in parallel...${RESET}"
+
 
 # Create temporary files for parallel output
 GAU_OUT=$(mktemp)
 WAYBACK_OUT=$(mktemp)
 KATANA_OUT=$(mktemp)
 PARAMSPIDER_OUT=$(mktemp)
+HAKRAWLER_OUT=$(mktemp)
+WAYMORE_OUT=$(mktemp)
+
 
 if [[ -n "$TARGET_FILE" ]]; then
     echo -e "${GREEN}[INFO] Processing list from file: $TARGET_FILE${RESET}"
@@ -167,6 +181,8 @@ if [[ -n "$TARGET_FILE" ]]; then
     waybackurls < "$TARGET_FILE" > "$WAYBACK_OUT" &
     katana -list "$TARGET_FILE" -d 5 -silent -jc -concurrency 50 -timeout 10 > "$KATANA_OUT" &
     paramspider -l "$TARGET_FILE" -s > "$PARAMSPIDER_OUT" &
+    cat "$TARGET_FILE" | hakrawler > "$HAKRAWLER_OUT" &
+
 else
     echo -e "${GREEN}[INFO] Processing single domain: $TARGET_DOMAIN${RESET}"
     
@@ -174,14 +190,19 @@ else
     echo "$TARGET_DOMAIN" | waybackurls > "$WAYBACK_OUT" &
     katana -u "$TARGET_DOMAIN" -d 5 -silent -jc -concurrency 50 -timeout 10 > "$KATANA_OUT" &
     paramspider -d "$TARGET_DOMAIN" -s > "$PARAMSPIDER_OUT" &
+    echo "$TARGET_DOMAIN" | hakrawler > "$HAKRAWLER_OUT" &
+    waymore -i "$TARGET_DOMAIN" -mode U -oU "$WAYMORE_OUT" &
+
 fi
 
 # Wait for all background processes to finish
 wait
 
 # Combine and deduplicate results
-cat "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" | sort -u > "$ALL_RAW_URLS"
-rm "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT"
+# Combine and deduplicate results
+cat "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" "$HAKRAWLER_OUT" "$WAYMORE_OUT" | sort -u > "$ALL_RAW_URLS"
+rm "$GAU_OUT" "$WAYBACK_OUT" "$KATANA_OUT" "$PARAMSPIDER_OUT" "$HAKRAWLER_OUT" "$WAYMORE_OUT"
+
 
 echo -e "${GREEN}[INFO] checking for live URLs on $(wc -l < "$ALL_RAW_URLS") discovered URLs...${RESET}"
 
