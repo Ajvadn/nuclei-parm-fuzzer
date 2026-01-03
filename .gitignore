@@ -1,4 +1,10 @@
+# Binaries
+nuclei-parm-fuzzer
+nuclei-parm-fuzzer.exe
+
+# Output folders
 results/
-testphp.vulnweb.com/
-*.txt
-*.log
+*/
+
+# Go specific
+go.sum

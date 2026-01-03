@@ -1,24 +1,21 @@
 # Nuclei Parameter Fuzzer 🚀
 
-A high-performance DAST scanning tool that automates URL discovery, parameter filtering, and vulnerability scanning using Nuclei. Optimized for speed and security research.
+A high-performance DAST scanning tool written in Go. It automates URL discovery, parameter filtering, and vulnerability scanning using Nuclei. Optimized for speed, reliability, and security research.
 
 ## Features ✨
 
-- **Parallel URL Discovery**: Simultaneously fetches URLs from `gau`, `waybackurls`, `katana`, and `paramspider`.
+- **Parallel URL Discovery**: Simultaneously fetches URLs from `gau`, `waybackurls`, `katana`, `paramspider`, `hakrawler`, and `waymore`.
 - **Smart Filtering**: Uses `uro` to filter for unique URLs with query parameters, reducing noise and scan time.
 - **Liveness Checking**: Integrated with `httpx` to ensure only live targets are scanned.
 - **DAST Scanning**: Leverages `nuclei` for powerful, template-based vulnerability detection.
 - **Speed Optimized**: Fine-tuned concurrency and parallel processing for rapid results.
-- **One-Click Updates**: Keep all your tools and templates up to date with a single command.
+- **Self-Healing**: Automatically installs missing dependencies like `gau`, `katana`, etc.
 
 ## Prerequisites 🛠️
 
 Ensure you have the following installed:
-- [Go](https://golang.org/doc/install)
-- [Python 3](https://www.python.org/downloads/)
-- [pip3](https://pip.pypa.io/en/stable/installation/)
-
-The script will offer to install any missing tools automatically on the first run.
+- [Go](https://golang.org/doc/install) (1.21+)
+- [Python 3](https://www.python.org/downloads/) & `pip3`
 
 ## Installation 📥
 
@@ -27,26 +24,34 @@ The script will offer to install any missing tools automatically on the first ru
    git clone https://github.com/YOUR_USERNAME/nuclei-parmter-fuzz.git
    cd nuclei-parmter-fuzz
    ```
-2. Make the script executable:
+
+2. Install the tool:
    ```bash
-   chmod +x nuclei-parm-fuzzer.sh
+   go install .
    ```
+
+3. Run it!
+   ```bash
+   nuclei-parm-fuzzer -h
+   ```
+
+   (Ensure your `$GOPATH/bin` is in your `$PATH`)
 
 ## Usage 🚀
 
 ### Scan a single domain
 ```bash
-./nuclei-parm-fuzzer.sh -d example.com
+nuclei-parm-fuzzer -d example.com
 ```
 
 ### Scan multiple domains from a file
 ```bash
-./nuclei-parm-fuzzer.sh -f domains.txt
+nuclei-parm-fuzzer -f domains.txt
 ```
 
 ### Update all tools and templates
 ```bash
-./nuclei-parm-fuzzer.sh --update
+nuclei-parm-fuzzer --update
 ```
 
 ## Options ⚙️
@@ -57,13 +62,6 @@ The script will offer to install any missing tools automatically on the first ru
 | `-f`, `--file` | File containing a list of domains |
 | `-u`, `--update` | Update all backend tools and Nuclei templates |
 | `-h`, `--help` | Show the help message |
-
-## Performance Tuning ⚡
-
-The tool is pre-configured with high-concurrency settings: "
-- **Threads (httpx)**: 500
-- **Concurrency (Nuclei)**: 50
-- **Rate Limit (Nuclei)**: 100 req/s
 
 ## Disclaimer ⚠️
 
