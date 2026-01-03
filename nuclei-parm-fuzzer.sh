@@ -186,12 +186,20 @@ if [[ -n "$TARGET_FILE" ]]; then
 else
     echo -e "${GREEN}[INFO] Processing single domain: $TARGET_DOMAIN${RESET}"
     
-    gau "$TARGET_DOMAIN" --subs > "$GAU_OUT" &
+    echo "$TARGET_DOMAIN" | gau --subs > "$GAU_OUT" &
     echo "$TARGET_DOMAIN" | waybackurls > "$WAYBACK_OUT" &
-    katana -u "$TARGET_DOMAIN" -d 5 -silent -jc -concurrency 50 -timeout 10 > "$KATANA_OUT" &
-    paramspider -d "$TARGET_DOMAIN" -s > "$PARAMSPIDER_OUT" &
-    echo "$TARGET_DOMAIN" | hakrawler > "$HAKRAWLER_OUT" &
-    waymore -i "$TARGET_DOMAIN" -mode U -oU "$WAYMORE_OUT" &
+    katana -u "https://$TARGET_DOMAIN" -d 5 -silent -jc -concurrency 50 -timeout 10 > "$KATANA_OUT" &
+    
+    # ParamSpider: Run in subshell, suppress output, and cat the result file. 
+    # ParamSpider saves to results/<domain>.txt by default.
+    (paramspider -d "$TARGET_DOMAIN" -s > /dev/null 2>&1; cat "results/$TARGET_DOMAIN.txt" >> "$PARAMSPIDER_OUT" 2>/dev/null) &
+    
+    # Hakrawler: Needs a URL, not just a domain.
+    # Flags: -d (depth), -subs (include subdomains), -u (unique)
+    echo "https://$TARGET_DOMAIN" | hakrawler -d 2 -subs -u > "$HAKRAWLER_OUT" &
+    
+    # Waymore: Ensure it runs correctly
+    waymore -i "$TARGET_DOMAIN" -mode U -oU "$WAYMORE_OUT" > /dev/null 2>&1 &
 
 fi
 
