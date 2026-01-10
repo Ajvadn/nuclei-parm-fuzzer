@@ -18,8 +18,8 @@ Ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/nuclei-parmter-fuzz.git
-   cd nuclei-parmter-fuzz
+   git clone https://github.com/Ajvadn/parm-fuzzer.git
+   cd parm-fuzzer
    ```
 
 2. Install the tool:
