@@ -73,6 +73,7 @@ func main() {
 
 	PrintBanner()
 	CheckDependencies()
+	UpdateAllTools() // Automatically update all tools on every run
 
 	outputName := ""
 	if targetDomain != "" {
