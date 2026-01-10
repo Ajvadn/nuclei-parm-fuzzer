@@ -35,16 +35,6 @@ func CheckAndInstall(tool string, installCmd string) {
 	}
 }
 
-func CreateDir(dir string) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			LogError(fmt.Sprintf("Failed to create directory %s: %v", dir, err))
-			os.Exit(1)
-		}
-		LogInfo(fmt.Sprintf("Output directory created: %s", dir))
-	}
-}
 
 func WriteLines(lines []string, path string) error {
 	file, err := os.Create(path)

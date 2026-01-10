@@ -40,8 +40,8 @@ func main() {
 	flag.StringVar(&targetDomain, "domain", "", "Target single domain")
 	flag.StringVar(&targetFile, "f", "", "File containing list of domains")
 	flag.StringVar(&targetFile, "file", "", "File containing list of domains")
-	flag.BoolVar(&updateTools, "u", false, "Update all tools and Nuclei templates")
-	flag.BoolVar(&updateTools, "update", false, "Update all tools and Nuclei templates")
+	flag.BoolVar(&updateTools, "u", false, "Update all tools")
+	flag.BoolVar(&updateTools, "update", false, "Update all tools")
 
 	flag.Usage = func() {
 		PrintBanner()
@@ -81,13 +81,9 @@ func main() {
 		outputName = strings.TrimSuffix(filepath.Base(targetFile), filepath.Ext(targetFile))
 	}
 
-	outputDir := outputName
-	CreateDir(outputDir)
-
-	fullURLsFile := filepath.Join(outputDir, "full-url-"+outputName+".txt")
-	paramURLsFile := filepath.Join(outputDir, "param-url-"+outputName+".txt")
-	jsURLsFile := filepath.Join(outputDir, "js-urls-"+outputName+".txt")
-	nucleiResultsFile := filepath.Join(outputDir, "nuclei_results.txt")
+	fullURLsFile := "alive-full-url-" + outputName + ".txt"
+	paramURLsFile := "parm-url-" + outputName + ".txt"
+	jsURLsFile := "js-files-url-" + outputName + ".txt"
 
 	ctx := context.Background()
 
@@ -98,11 +94,11 @@ func main() {
 		commands = []string{
 			"gau --subs",
 			"waybackurls",
-			fmt.Sprintf("katana -list %s -d 5 -silent -jc -concurrency 50 -timeout 10", targetFile),
+			fmt.Sprintf("katana -list %s -d 5 -silent -jc -concurrency 100 -timeout 10", targetFile),
 			fmt.Sprintf("paramspider -l %s -s", targetFile),
 			"hakrawler",
+			fmt.Sprintf("cat %s | xargs -I {} -P 10 sh -c 'waymore -i {} -mode U -oU /tmp/waymore_{}.txt > /dev/null 2>&1 && cat /tmp/waymore_{}.txt && rm /tmp/waymore_{}.txt'", targetFile),
 		}
-		// Note: waymore logic might need adjustment for file input if it doesn't support stdin easily in this way
 	} else {
 		commands = []string{
 			fmt.Sprintf("echo %s | gau --subs", targetDomain),
@@ -135,17 +131,19 @@ func main() {
 		scopeRegex = regexp.QuoteMeta(targetDomain)
 	}
 
+	var filterDomains []string
+	if targetFile != "" {
+		filterDomains, _ = ReadLines(targetFile)
+	}
+
 	for u := range uniqueURLs {
 		if scopeRegex != "" {
 			if matched, _ := regexp.MatchString(scopeRegex, u); !matched {
 				continue
 			}
-		} else if targetFile != "" {
-			// Basic filtering for file input: check if any domain in file is in URL
-			// This is a bit slow in Go if we load file every time, so let's load once
-			domains, _ := ReadLines(targetFile)
+		} else if len(filterDomains) > 0 {
 			found := false
-			for _, d := range domains {
+			for _, d := range filterDomains {
 				if strings.Contains(u, d) {
 					found = true
 					break
@@ -165,7 +163,7 @@ func main() {
 	defer os.Remove(tmpFile.Name())
 	WriteLines(filtered, tmpFile.Name())
 
-	liveURLs, _ := RunCommand(ctx, fmt.Sprintf("httpx -silent -threads 500 -rl 300 -timeout 5 < %s", tmpFile.Name()), nil)
+	liveURLs, _ := RunCommand(ctx, fmt.Sprintf("httpx -silent -threads 1000 -rl 1000 -timeout 5 < %s", tmpFile.Name()), nil)
 	
 	LogInfo("Categorizing live URLs...")
 	
@@ -204,39 +202,9 @@ func main() {
 	LogStatus(fmt.Sprintf("Saved JS Live URLs: %s", jsURLsFile))
 	LogStatus(fmt.Sprintf("Saved Parameter Live URLs: %s", paramURLsFile))
 
-	if len(params) > 0 {
-		LogInfo("Running nuclei for DAST scanning on parameter URLs...")
-		nucleiCmd := fmt.Sprintf("nuclei -dast -retries 2 -silent -concurrency 50 -rate-limit 100 -o %s", nucleiResultsFile)
-		
-		pTmp, _ := os.CreateTemp("", "nuclei_input_*.txt")
-		defer os.Remove(pTmp.Name())
-		WriteLines(params, pTmp.Name())
-		
-		cmd := exec.Command("sh", "-c", nucleiCmd+" < "+pTmp.Name())
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Run()
-	} else {
-		LogInfo("No parameter URLs found for DAST scanning.")
-	}
-
 	LogInfo("Automation completed successfully!")
-	
-	// Final check on results
-	if _, err := os.Stat(nucleiResultsFile); os.IsNotExist(err) || IsEmptyFile(nucleiResultsFile) {
-		LogInfo("No vulnerable URLs found.")
-	} else {
-		LogInfo(fmt.Sprintf("Vulnerabilities were detected. Check %s for details.", nucleiResultsFile))
-	}
 }
 
-func IsEmptyFile(name string) bool {
-	info, err := os.Stat(name)
-	if err != nil {
-		return true
-	}
-	return info.Size() == 0
-}
 
 func CheckDependencies() {
 	tools := map[string]string{
@@ -244,7 +212,6 @@ func CheckDependencies() {
 		"waybackurls": "go install github.com/tomnomnom/waybackurls@latest",
 		"katana":      "go install github.com/projectdiscovery/katana/cmd/katana@latest",
 		"httpx":       "go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
-		"nuclei":      "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
 		"uro":         "pip3 install uro --break-system-packages",
 		"paramspider": "pip3 install git+https://github.com/devanshbatham/ParamSpider --break-system-packages",
 		"waymore":     "pip3 install git+https://github.com/xnl-h4ck3r/waymore.git --break-system-packages",
@@ -257,7 +224,7 @@ func CheckDependencies() {
 }
 
 func UpdateAllTools() {
-	LogInfo("Updating all tools and Nuclei templates...")
+	LogInfo("Updating all tools...")
 	
 	updates := []struct {
 		name string
@@ -267,8 +234,6 @@ func UpdateAllTools() {
 		{"waybackurls", "go install github.com/tomnomnom/waybackurls@latest"},
 		{"katana", "go install github.com/projectdiscovery/katana/cmd/katana@latest"},
 		{"httpx", "go install github.com/projectdiscovery/httpx/cmd/httpx@latest"},
-		{"nuclei", "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"},
-		{"nuclei templates", "nuclei -ut"},
 		{"uro", "pip3 install --upgrade uro --break-system-packages"},
 		{"paramspider", "pip3 install --upgrade git+https://github.com/devanshbatham/ParamSpider --break-system-packages"},
 		{"waymore", "pip3 install --upgrade git+https://github.com/xnl-h4ck3r/waymore.git --break-system-packages"},
@@ -283,5 +248,5 @@ func UpdateAllTools() {
 		cmd.Run()
 	}
 
-	LogInfo("All tools and templates updated successfully!")
+	LogInfo("All tools updated successfully!")
 }

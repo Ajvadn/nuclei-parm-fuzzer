@@ -1,13 +1,10 @@
-# Nuclei Parameter Fuzzer 🚀
+# parm-fuzzer 🚀
 
-A high-performance DAST scanning tool written in Go. It automates URL discovery, parameter filtering, and vulnerability scanning using Nuclei. Optimized for speed, reliability, and security research.
-
-## Features ✨
+A high-performance URL discovery and parameter gathering tool written in Go. It automates URL discovery and parameter filtering. Optimized for speed, reliability, and security research.
 
 - **Parallel URL Discovery**: Simultaneously fetches URLs from `gau`, `waybackurls`, `katana`, `paramspider`, `hakrawler`, and `waymore`.
-- **Smart Filtering**: Uses `uro` to filter for unique URLs with query parameters, reducing noise and scan time.
-- **Liveness Checking**: Integrated with `httpx` to ensure only live targets are scanned.
-- **DAST Scanning**: Leverages `nuclei` for powerful, template-based vulnerability detection.
+- **Smart Filtering**: Uses `uro` to filter for unique URLs with query parameters, reducing noise and gathering organized results.
+- **Liveness Checking**: Integrated with `httpx` to ensure only live targets are saved.
 - **Speed Optimized**: Fine-tuned concurrency and parallel processing for rapid results.
 - **Self-Healing**: Automatically installs missing dependencies like `gau`, `katana`, etc.
 
@@ -32,7 +29,7 @@ Ensure you have the following installed:
 
 3. Run it!
    ```bash
-   nuclei-parm-fuzzer -h
+   parm-fuzzer -h
    ```
 
    (Ensure your `$GOPATH/bin` is in your `$PATH`)
@@ -41,17 +38,17 @@ Ensure you have the following installed:
 
 ### Scan a single domain
 ```bash
-nuclei-parm-fuzzer -d example.com
+parm-fuzzer -d example.com
 ```
 
 ### Scan multiple domains from a file
 ```bash
-nuclei-parm-fuzzer -f domains.txt
+parm-fuzzer -f domains.txt
 ```
 
 ### Update all tools and templates
 ```bash
-nuclei-parm-fuzzer --update
+parm-fuzzer --update
 ```
 
 ## Options ⚙️
@@ -60,7 +57,7 @@ nuclei-parm-fuzzer --update
 | :--- | :--- |
 | `-d`, `--domain` | Target a single domain |
 | `-f`, `--file` | File containing a list of domains |
-| `-u`, `--update` | Update all backend tools and Nuclei templates |
+| `-u`, `--update` | Update all backend tools |
 | `-h`, `--help` | Show the help message |
 
 ## Disclaimer ⚠️
