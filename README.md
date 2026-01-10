@@ -8,11 +8,12 @@ A high-performance URL discovery and parameter gathering tool written in Go. It 
 - **Speed Optimized**: Fine-tuned concurrency and parallel processing for rapid results.
 - **Self-Healing**: Automatically installs missing dependencies like `gau`, `katana`, etc.
 
-## Prerequisites 🛠️
+### One-liner Installation 🚀
+```bash
+go install github.com/Ajvadn/parm-fuzzer@latest
+```
 
-Ensure you have the following installed:
-- [Go](https://golang.org/doc/install) (1.21+)
-- [Python 3](https://www.python.org/downloads/) & `pip3`
+---
 
 ## Installation 📥
 
